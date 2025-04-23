@@ -21,7 +21,11 @@
 <details>
 <summary>열기</summary>
 <div>
-
+### 개발
+- Jenkins 세팅 기능 구현
+    - Jenkins 설치
+    - Jenkins 초기화 (계정 자동 생성)
+    - Jenkins Plugin 추가
 
 
 </div>
