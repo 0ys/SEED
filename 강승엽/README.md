@@ -55,7 +55,46 @@
 > ### 목차
 
 <details>
-<summary></summary>
+<summary>1. [STT 테스트]</summary>
+<div>
+
+- Azure STT를 활용해 STT 테스트
+- Wake word 설정을 통한 키워드 입력 시 동작하게 설정(porcupine)
+
+</div>
+</details>
+
+<details>
+<summary>2. [User 필드 추가]</summary>
+<div>
+
+- Gitlab 로그인 API 수정
+  - GitLab 로그인시 이름, 아이디, 프로필 이미지 필드 추가
+
+</div>
+</details>
+
+<details>
+<summary>3. [프로젝트 초대 관련]</summary>
+<div>
+
+- 프로젝트 초대 관련 로직 추가/수정
+  - 프로젝트 초대 유저 조회(TrieSearch)
+  - 프로젝트 초대(1:1 -> 1:多)
+
+</div>
+</details>
+
+<details>
+<summary>4. [Notification DB 저장]</summary>
+<div>
+
+- FCM 알림 발생 시 DB에 알림 내역 저장
+  - 읽음 처리 API
+  - 전체 알림 조회
+  - 안읽은 알림 조회
+
+</div>
 </details>
 
 ---
