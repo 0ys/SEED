@@ -21,6 +21,7 @@
 <details>
 <summary>열기</summary>
 <div>
+
 ### 개발
 - Jenkins 세팅 기능 구현
     - Jenkins 설치
@@ -37,7 +38,13 @@
 <summary>열기</summary>
 <div>
 
+### 개발
+- 코드 정리
+    - serverInitializeCommands 로직직 개선
 
+- Jenkins 세팅 기능 구현
+    - Jenkins Plugin (groovy 기반) 설치 오류 해결
+    - Jenkins gitlab connection 구성
 </div>
 </details>
 
