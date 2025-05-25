@@ -2,6 +2,7 @@ package org.example.backend.domain.jenkins.service;
 
 import org.example.backend.controller.response.jenkins.*;
 import org.example.backend.domain.aireport.enums.ReportStatus;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -22,4 +23,5 @@ public interface JenkinsService {
     void issueAndSaveToken(Long projectId, String serverIp, String accessToken);
     String getStepLogById(Long projectId, int buildNumber, String stepNumber, String accessToken);
     ReportStatus waitUntilBuildFinishes(int newBuildNumber, Long projectId);
+    public String generateAndSaveJenkinsToken(Long projectId, MultipartFile pemFile);
 }

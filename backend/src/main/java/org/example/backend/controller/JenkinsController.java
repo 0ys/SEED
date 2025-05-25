@@ -10,6 +10,7 @@ import org.example.backend.global.response.ApiResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -111,6 +112,16 @@ public class JenkinsController {
         jenkinsService.logLastBuildResultToProject(projectId);
         return ResponseEntity.ok(ApiResponse.success());
     }
+
+    @PostMapping("/token/{projectId}")
+    public ResponseEntity<String> generateAndSaveToken(
+            @PathVariable Long projectId,
+            @RequestParam("pemFile") MultipartFile pemFile) {
+
+        String token = jenkinsService.generateAndSaveJenkinsToken(projectId, pemFile);
+        return ResponseEntity.ok(token);
+    }
+
 
 
 }

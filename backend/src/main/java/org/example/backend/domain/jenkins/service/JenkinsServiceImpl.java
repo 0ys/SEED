@@ -2,10 +2,14 @@ package org.example.backend.domain.jenkins.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.backend.common.auth.ProjectAccessValidator;
+import org.example.backend.common.util.SshUtil;
 import org.example.backend.controller.response.jenkins.*;
 import org.example.backend.domain.aireport.enums.ReportStatus;
 import org.example.backend.domain.jenkins.entity.JenkinsInfo;
@@ -21,9 +25,11 @@ import org.example.backend.domain.project.repository.ProjectRepository;
 import org.example.backend.global.exception.BusinessException;
 import org.example.backend.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -41,6 +47,7 @@ public class JenkinsServiceImpl implements JenkinsService {
     private final JenkinsInfoRepository jenkinsInfoRepository;
     private final ProjectExecutionRepository projectExecutionRepository;
     private final ProjectAccessValidator projectAccessValidator;
+    private final SshUtil sshUtil;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -617,5 +624,56 @@ public class JenkinsServiceImpl implements JenkinsService {
         }
 
         throw new BusinessException(ErrorCode.BUSINESS_ERROR);
+    }
+
+    @Override
+    public String generateAndSaveJenkinsToken(Long projectId, MultipartFile pemFile) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+
+        // SSH 접속
+        try (Session session = createSessionWithPem(pemFile.getBytes(), project.getServerIP());) {
+
+            String token = sshUtil.generateJenkinsTokenViaGroovy(session);
+
+            JenkinsInfo info = jenkinsInfoRepository.findByProjectId(projectId)
+                    .map(existing -> existing.toBuilder()
+                            .apiToken(token)
+                            .build())
+                    .orElseGet(() -> JenkinsInfo.builder()
+                            .projectId(projectId)
+                            .baseUrl("http://" + project.getServerIP() + ":9090")
+                            .username("admin")
+                            .apiToken(token)
+                            .jobName("auto-created-deployment-job")
+                            .build());
+
+            jenkinsInfoRepository.save(info);
+            return token;
+
+        } catch (JSchException | IOException e) {
+            throw new BusinessException(ErrorCode.CREATE_AND_SAVE_JENKINS_TOKEN_FAILED);
+        }
+
+
+    }
+
+    public Session createSessionWithPem(byte[] pemFile, String serverIp) throws BusinessException {
+        try {
+            log.info("SSH 연결 시도: {}", serverIp);
+            JSch jsch = new JSch();
+            jsch.addIdentity("ec2-key", pemFile, null, null);
+
+            Session session = jsch.getSession("ubuntu", serverIp, 22);
+            Properties cfg = new Properties();
+            cfg.put("StrictHostKeyChecking", "no");
+            session.setConfig(cfg);
+            session.connect(10000);
+            log.info("SSH 연결 성공: {}", serverIp);
+
+            return session;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.CREATE_SSH_SESSION_FAILED);
+        }
     }
 }
