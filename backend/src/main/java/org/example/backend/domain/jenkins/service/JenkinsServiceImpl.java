@@ -2,6 +2,7 @@ package org.example.backend.domain.jenkins.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
@@ -27,10 +28,8 @@ import org.example.backend.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -303,7 +302,7 @@ public class JenkinsServiceImpl implements JenkinsService {
         projectAccessValidator.validateUserInProject(projectId, accessToken);
         try {
             String jenkinsUrl = "http://" + serverIp + ":9090";
-            String jenkinsJobName = "drum-dummy1";
+            String jenkinsJobName = "auto-created-deployment-job";
             String jenkinsUsername = "admin";
             String jenkinsToken = generateTokenViaCurl(
                     jenkinsUrl,
@@ -632,9 +631,10 @@ public class JenkinsServiceImpl implements JenkinsService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
 
         // SSH 접속
-        try (Session session = createSessionWithPem(pemFile.getBytes(), project.getServerIP());) {
-
-            String token = sshUtil.generateJenkinsTokenViaGroovy(session);
+        try {
+            Session session = createSessionWithPem(pemFile.getBytes(), project.getServerIP());
+            String token = generateTokenViaFile(session);
+            log.info("API 토큰 내용: {}", token);
 
             JenkinsInfo info = jenkinsInfoRepository.findByProjectId(projectId)
                     .map(existing -> existing.toBuilder()
@@ -651,7 +651,7 @@ public class JenkinsServiceImpl implements JenkinsService {
             jenkinsInfoRepository.save(info);
             return token;
 
-        } catch (JSchException | IOException e) {
+        } catch (IOException e) {
             throw new BusinessException(ErrorCode.CREATE_AND_SAVE_JENKINS_TOKEN_FAILED);
         }
 
@@ -674,6 +674,62 @@ public class JenkinsServiceImpl implements JenkinsService {
             return session;
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.CREATE_SSH_SESSION_FAILED);
+        }
+    }
+
+    public String generateTokenViaFile(Session session) throws BusinessException {
+        try {
+            String cmd = "sudo cat /tmp/jenkins_token";
+            String result = execCommand(session, cmd);
+
+            if (result.isBlank()) {
+                throw new BusinessException(ErrorCode.JENKINS_TOKEN_RESPONSE_INVALID);
+            }
+
+            return result.trim();
+
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.CREATE_AND_SAVE_JENKINS_TOKEN_FAILED);
+        }
+    }
+
+    private String execCommand(Session session, String command) throws JSchException, IOException {
+        ChannelExec channel = (ChannelExec) session.openChannel("exec");
+        try (ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+             ByteArrayOutputStream stderr = new ByteArrayOutputStream()) {
+
+            channel.setCommand(command);
+            channel.setInputStream(null);
+            channel.setOutputStream(stdout);
+            channel.setErrStream(stderr);
+
+            channel.connect(60_000);
+
+            while (!channel.isClosed()) {
+                if (System.currentTimeMillis() - System.currentTimeMillis() > (10 * 60000)) {
+                    channel.disconnect();
+                    throw new IOException("명령 실행 타임아웃: " + command);
+                }
+                Thread.sleep(1_000);
+            }
+
+            int code = channel.getExitStatus();
+            if (code != 0) {
+                String err = stderr.toString(StandardCharsets.UTF_8);
+                String out = stdout.toString(StandardCharsets.UTF_8);
+                throw new IOException(String.format(
+                        "명령 실패(exit=%d)%n[STDERR]%n%s%n[STDOUT]%n%s", code, err, out
+                ));
+            }
+            return stdout.toString(StandardCharsets.UTF_8);
+
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("명령 대기 중 인터럽트", ie);
+        } finally {
+            if (channel.isConnected()) {
+                channel.disconnect();
+            }
         }
     }
 }
