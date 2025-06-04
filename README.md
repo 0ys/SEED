@@ -37,7 +37,7 @@
 ## 2. 주요 기능
 ![주요 기능](images/seed_main_function.png)
 
-### 2-1 원클릭 자동 배포 파이프라인인 구축
+### 2-1 원클릭 자동 배포 파이프라인 구축
 - EC2 서버에 Docker, Docker-Compose, Jenkins를 자동으로 설치·설정함  
 - GitLab/GitHub 리포지토리 연동 Webhook 등록 및 Jenkins Job을 자동 생성·실행함  
 - 코드 클론부터 컨테이너 빌드·배포, Nginx 설정·헬스체크까지 한 번에 처리함  
@@ -74,7 +74,10 @@
 ### 3-2. AI 아키텍처
 ![서비스 흐름](images/seed_ai_architecture.png)
 
-### 3-2. 화면 구성
+### 3-3. 시스템 아키텍처
+![시스템 아키텍처](images/arch.png)
+
+### 3-4. 화면 구성
 > Light/Dark 모드 지원 (예시는 light 모드)
 
 <table border="1" cellspacing="0" cellpadding="8">
